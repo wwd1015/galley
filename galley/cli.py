@@ -6,7 +6,8 @@ from pathlib import Path
 
 import typer
 
-from galley import __version__, build, doctor, fidelity, manifest, scaffold, template
+from galley import __version__, build, doctor, fidelity, hooks, manifest, scaffold, template
+from galley import verify as verifier
 from galley.config import ConfigError, load_paper_config, read_paper_config
 
 app = typer.Typer(help="Whitepaper build system.", no_args_is_help=True)
@@ -217,3 +218,35 @@ def data_verify(paper_dir: Path = PAPER_ARGUMENT) -> None:
     if problems:
         raise typer.Exit(1)
     typer.echo("data matches the manifest")
+
+
+@app.command("verify")
+def verify_command(
+    source: Path = typer.Argument(..., help="The original document (.docx or .pdf)."),
+    paper_dir: Path = PAPER_ARGUMENT,
+    rebuild: bool = typer.Option(
+        True, "--build/--no-build", help="Build the paper first (default) or use the existing PDF."
+    ),
+    settings_file: Path | None = typer.Option(None, "--config", help="Path to a verify.yaml."),
+) -> None:
+    """Compare the original document with the rendered PDF; fail on content loss."""
+    try:
+        settings = verifier.load_settings(settings_file) if settings_file else None
+        report = verifier.verify(source, paper_dir, rebuild=rebuild, settings=settings)
+    except (verifier.VerifyError, ConfigError) as exc:
+        _fail(exc, 2)
+    for check in report["checks"]:
+        typer.echo(f"{check['status'].upper():<9} {check['title']}: {check['summary']}")
+    typer.echo(f"wrote {paper_dir / 'verify-report.md'}")
+    if report["status"] != "pass":
+        raise typer.Exit(1)
+
+
+@app.command("hooks")
+def hooks_command(paper_dir: Path = PAPER_ARGUMENT) -> None:
+    """Install a pre-commit hook that runs `galley verify` on a converted paper."""
+    try:
+        path = hooks.install(paper_dir)
+    except hooks.HookError as exc:
+        _fail(exc)
+    typer.echo(f"installed {path}")

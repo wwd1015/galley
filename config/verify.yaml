@@ -1,0 +1,24 @@
+# Thresholds for `galley verify` (original document vs the rendered Galley PDF).
+
+text:
+  min-coverage: 0.995        # share of source word tokens present in the PDF
+  max-missing-run: 8         # a run of this many consecutive missing tokens fails
+
+numbers:
+  extra: fail                # fail | warn: numbers in the PDF that the source lacks
+
+exhibits:
+  min-caption-similarity: 0.98
+
+# Words that introduce a numbered label. "Figure 3" and "Table 2" are
+# renumbered by the template, so the number after these words is ignored.
+labels: [Figure, Fig., Table, Section, Chapter, Exhibit, Chart, Appendix, Equation]
+figure-labels: [Figure, Fig., Exhibit, Chart]
+table-labels: [Table]
+
+# Where the template puts a figure's caption relative to the figure. Text
+# between a figure and its caption (axis labels, tick values) is not content.
+figure-caption-position: below   # below | above
+
+# Share of the page height, top and bottom, treated as running header/footer.
+furniture-zone: 0.09

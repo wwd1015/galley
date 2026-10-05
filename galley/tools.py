@@ -33,6 +33,9 @@ def render_env(engine: str) -> dict[str, str]:
     """Environment for Quarto: this Python as the Jupyter host and TeX on PATH."""
     env = dict(os.environ)
     env.setdefault("QUARTO_PYTHON", sys.executable)
+    # The Jupyter kernel must import the same Galley that is driving the build.
+    package_parent = str(Path(__file__).resolve().parent.parent)
+    env["PYTHONPATH"] = package_parent + os.pathsep + env.get("PYTHONPATH", "")
     tool = find_tool(engine)
     if tool is not None:
         env["PATH"] = str(tool.parent) + os.pathsep + env.get("PATH", "")
