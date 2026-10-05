@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A stand-in for the ``gh`` CLI backed by a JSON file, for tests and offline demos.
+"""A stand-in for the ``gh`` CLI backed by a JSON file, for `galley demo` and for tests.
 
 It implements exactly the calls ``galley.gh`` makes, with GitHub's rules that
 matter to Galley: line comments are refused outside the diff, list responses
@@ -16,20 +16,37 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, NoReturn
 
-STATE = Path(os.environ["FAKE_GH_STATE"])
-USER = os.environ.get("FAKE_GH_USER", "")
+AVATAR_COLOURS = ("#0969da", "#8250df", "#bf3989", "#1a7f37", "#9a6700", "#cf222e")
+
+
+def state_path() -> Path:
+    return Path(os.environ["FAKE_GH_STATE"])
+
+
+def avatar(user: str) -> str:
+    """A coloured disc with the user's initial, as a data URI (nothing is fetched)."""
+    colour = AVATAR_COLOURS[sum(map(ord, user)) % len(AVATAR_COLOURS)]
+    letter = (user[:1] or "?").upper()
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56">'
+        f'<circle cx="28" cy="28" r="28" fill="{colour}"/>'
+        '<text x="28" y="37" font-size="26" font-family="Helvetica,Arial,sans-serif" '
+        f'fill="#fff" text-anchor="middle">{letter}</text></svg>'
+    )
+    return "data:image/svg+xml," + urllib.parse.quote(svg)
 
 
 def load() -> dict[str, Any]:
-    return json.loads(STATE.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+    return json.loads(state_path().read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 def save(state: dict[str, Any]) -> None:
-    STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
+    state_path().write_text(json.dumps(state, indent=1), encoding="utf-8")
 
 
 def respond(status: int, body: Any, etag: str = "") -> NoReturn:
@@ -69,7 +86,7 @@ def new_comment(state: dict[str, Any], user: str, fields: dict[str, Any]) -> dic
     comment = {
         "id": identifier,
         "node_id": f"PRRC_{identifier}",
-        "user": {"login": user, "avatar_url": f"https://avatars.githubusercontent.com/{user}"},
+        "user": {"login": user, "avatar_url": avatar(user)},
         "created_at": now(),
         "updated_at": now(),
         "html_url": f"https://github.com/{state['repo']}/pull/1#discussion_r{identifier}",
@@ -208,7 +225,7 @@ def graphql(state: dict[str, Any], payload: dict[str, Any]) -> NoReturn:
 
 def main(argv: list[str]) -> None:
     state = load()
-    user = USER or state["user"]
+    user = os.environ.get("FAKE_GH_USER", "") or state["user"]
     state.setdefault("calls", []).append(" ".join(argv))
     save(state)
     if argv[:2] == ["repo", "view"]:

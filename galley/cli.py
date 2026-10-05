@@ -298,12 +298,12 @@ def convert_command(
 
 
 def _serve(workspace: Path, *, tab: str, pr: int | None, port: int, hostname: str | None,
-           browser: bool) -> None:  # fmt: skip
+           browser: bool, demo: bool = False) -> None:  # fmt: skip
     import webbrowser
 
     from galley import workbench as wb
 
-    bench = wb.Workbench(workspace, hostname=hostname)
+    bench = wb.Workbench(workspace, hostname=hostname, demo=demo)
     bench.tab = tab
     if tab == "review":
         if bench.paper_dir is None:
@@ -339,6 +339,17 @@ def app_command(
     """Open the Galley app: convert, build, verify and review papers in one window."""
     workspace.mkdir(parents=True, exist_ok=True)
     _serve(workspace, tab="papers", pr=None, port=port, hostname=hostname, browser=browser)
+
+
+@app.command("demo")
+def demo_command(
+    workspace: Path = typer.Argument(Path("galley-demo"), help="Folder for the demo's files."),
+    port: int = PORT_OPTION,
+    browser: bool = BROWSER_OPTION,
+) -> None:
+    """Walk the whole process on sample material, with a simulated GitHub (nothing is sent)."""
+    workspace.mkdir(parents=True, exist_ok=True)
+    _serve(workspace, tab="papers", pr=None, port=port, hostname=None, browser=browser, demo=True)
 
 
 @app.command("review")

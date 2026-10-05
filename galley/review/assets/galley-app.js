@@ -173,7 +173,7 @@
   // ---- Papers ------------------------------------------------------------
 
   function drawPapers(state) {
-    draw("wb-tab-papers", [state.papers, state.paper, state.workspace, state.doctor, busy(state)], function () {
+    draw("wb-tab-papers", [state.papers, state.paper, state.workspace, state.doctor, busy(state), !!state.demo], function () {
       const rows = state.papers.map((paper) => [
         el("button", {
           class: "gl-link wb-strong",
@@ -196,6 +196,19 @@
           el("li", { html: "<b>Verify</b> a converted paper against its original: text, numbers, headings, exhibits." }),
           el("li", { html: "<b>Review</b> on a GitHub pull request with a live typeset preview." }),
         ]),
+        state.demo
+          ? el("div", { class: "wb-demo" }, [
+              el("b", { text: "Demo walkthrough" }),
+              el("ol", {}, [
+                el("li", { html: "Open <b>1 Convert</b>. The sample Word whitepaper and its bibliography are already filled in. Press <b>Convert</b> and watch the stages in the strip above." }),
+                el("li", { html: "Read the conversion report: one style has no mapping, one figure needs data, one citation could not be matched. Verify <b>fails</b> on purpose, because that citation's year (1999) is missing from the PDF." }),
+                el("li", { html: "Open <b>2 Build</b> to see the manifest, the checks and the PDF, including a chart rebuilt from the data embedded in the Word file." }),
+                el("li", { html: "Open <b>3 Verify</b> and look at each finding. To accept the missing number you must give a reason and your name." }),
+                el("li", { html: "Open <b>4 Review</b>. A pull request is simulated on your machine and a teammate (alice) has left two comments. Reply, add a comment with the blue <b>+</b>, resolve, edit the text, and watch alice answer within a few seconds." }),
+              ]),
+              el("p", { class: "wb-muted", text: "Nothing in the demo is sent to GitHub or anywhere else." }),
+            ])
+          : null,
         state.papers.length
           ? table(["Paper", "Origin", "Build", "Verify", "Git repo", ""], rows)
           : el("p", { text: "No papers in this workspace yet." }),
@@ -235,16 +248,21 @@
       ];
     });
     const detail = state.detail;
-    draw("wb-convert-body", [state.upload, busy(state), detail && detail.conversion_html, detail && detail.slug], function () {
-      const upload = state.upload || {};
+    draw("wb-convert-body", [state.upload, state.demo, busy(state), detail && detail.conversion_html, detail && detail.slug], function () {
+      const demo = state.demo && !(state.upload || {}).name ? state.demo : null;
+      const upload = demo ? { name: demo.slug + ".docx", path: demo.sample } : state.upload || {};
       const guess = upload.name ? upload.name.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") : "";
       const isBib = (upload.name || "").endsWith(".bib");
       return [
-        upload.name ? el("p", {}, ["Uploaded: ", el("b", { text: upload.name })]) : null,
+        demo
+          ? el("p", {}, [pill("demo", "new"), " The sample whitepaper is filled in below. Press Convert."])
+          : upload.name
+            ? el("p", {}, ["Uploaded: ", el("b", { text: upload.name })])
+            : null,
         el("div", { class: "wb-form" }, [
           field("wb-conv-source", "File path or Google Docs URL", "/path/to/paper.docx or https://docs.google.com/document/d/…", isBib ? "" : upload.path),
           field("wb-conv-slug", "Paper id", "lowercase-with-hyphens", isBib ? "" : guess),
-          field("wb-conv-bib", "Bibliography (.bib), optional", "/path/to/references.bib", isBib ? upload.path : ""),
+          field("wb-conv-bib", "Bibliography (.bib), optional", "/path/to/references.bib", demo ? demo.bib : isBib ? upload.path : ""),
           field("wb-conv-url", "Where the document lives online, optional", "https://…"),
         ]),
         el("button", {
@@ -441,8 +459,12 @@
 
   function drawReview(state) {
     const available = !!state.review;
-    draw("wb-review-empty", [available, state.review_error, state.paper], function () {
-      if (available) return [];
+    draw("wb-review-empty", [available, state.review_error, state.paper, !!state.demo], function () {
+      if (available) {
+        return state.demo
+          ? [el("div", { class: "wb-demo slim" }, [pill("demo", "new"), " Simulated GitHub on this machine. You are “you”; alice is a simulated teammate who answers your comments within a few seconds."])]
+          : [];
+      }
       return [
         el("h2", { text: "Review" }),
         el("p", {

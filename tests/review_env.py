@@ -8,12 +8,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from galley.demo import fake_gh
 from galley.gh import Gh
 from galley.review.session import ReviewSession
 
 from . import builders
 
-FAKE_GH = Path(__file__).resolve().parent / "fake_gh.py"
+FAKE_GH = Path(fake_gh.__file__).resolve()
 EDITED_LINE = "Retail balances fell by 4.5% while wholesale balances fell by 12.25%."
 NEW_LINE = "Retail balances fell by 4.8% while wholesale balances fell by 12.25%."
 

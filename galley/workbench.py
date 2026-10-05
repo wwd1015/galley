@@ -24,6 +24,7 @@ from flask import Response, abort, send_from_directory
 
 from galley import build, doctor, manifest, scaffold
 from galley import convert as converter
+from galley import demo as demos
 from galley import verify as verifier
 from galley.config import ConfigError, load_paper_config
 from galley.gh import Gh, GhError
@@ -72,6 +73,7 @@ class Workbench:
         *,
         hostname: str | None = None,
         gh_executable: str = "gh",
+        demo: bool = False,
     ) -> None:
         workspace = workspace.resolve()
         self.paper: str | None = None
@@ -92,6 +94,9 @@ class Workbench:
         self.message: dict[str, Any] = {"text": "", "kind": "info", "serial": 0}
         self.changes = 0
         self.ack = ""
+        # Demo mode: sample material to convert and a simulated GitHub for the Review tab.
+        self.demo: dict[str, str] | None = demos.prepare_workspace(workspace) if demo else None
+        self._teammate: demos.Teammate | None = None
         self._lock = threading.RLock()
         if self.paper is None:
             papers = self.paper_dirs()
@@ -303,6 +308,18 @@ class Workbench:
         if self.review is not None and self.review_paper == directory.name and pr is None:
             return
         self.close_review()
+        executable = self.gh_executable
+        if self.demo is not None:
+            try:
+                demo_dir = self.workspace / demos.DEMO_DIR
+                executable = demos.simulate_pull_request(directory, demo_dir)
+                self._teammate = demos.Teammate(directory, demo_dir)
+                self._teammate.start()
+            except (GhError, GitError, OSError) as exc:
+                with self._lock:
+                    self.review_error = f"The simulated pull request could not be set up: {exc}"
+                    self.changes += 1
+                return
         if not (directory / ".git").exists():
             with self._lock:
                 self.review_error = (
@@ -312,7 +329,7 @@ class Workbench:
                 self.changes += 1
             return
         try:
-            gh = Gh(directory, self.hostname, self.gh_executable)
+            gh = Gh(directory, self.hostname, executable)
             controller = build_controller(directory, gh, pr=pr)
         except (GhError, GitError, ConfigError) as exc:
             with self._lock:
@@ -328,6 +345,9 @@ class Workbench:
 
     def close_review(self) -> None:
         with self._lock:
+            if self._teammate is not None:
+                self._teammate.stop()
+                self._teammate = None
             if self.review is not None:
                 self.review.stop()
             self.review, self.review_paper = None, None
@@ -459,6 +479,7 @@ class Workbench:
             return {
                 "version": self.version(),
                 "ack": self.ack,
+                "demo": self.demo,
                 "workspace": str(self.workspace),
                 "tab": self.tab,
                 "papers": [self._paper_summary(d) for d in self.paper_dirs()],

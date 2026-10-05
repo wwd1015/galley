@@ -34,6 +34,11 @@ One local window (127.0.0.1 only) with a tab for each step:
 | 3 Verify | Compare the original with the rendered PDF. Shows each check and finding, the side-by-side images, and lets a person accept a finding. |
 | 4 Review | The pull request review with inline comments and live preview. Needs the paper pushed to GitHub with an open PR. |
 
+To see the whole process without any setup, run `galley demo`. It opens the
+same app on a sample Word whitepaper and simulates GitHub on your machine: the
+Review tab gets a pull request with a teammate's comments, and that teammate
+answers what you write. Nothing is sent anywhere.
+
 A strip under the tabs shows the running step and each stage it has passed.
 Every tab does what the matching command below does.
 
@@ -48,6 +53,7 @@ Every tab does what the matching command below does.
 | `galley verify <source> [dir]` | Compare the original document with the rendered PDF; non-zero exit on content loss. |
 | `galley hooks [dir]` | Install a pre-commit hook that runs `galley verify` on a converted paper. |
 | `galley app [workspace]` | The app: convert, build, verify and review in one window. |
+| `galley demo [folder]` | The app on sample material with a simulated GitHub, to see every step end to end. |
 | `galley review [dir]` | Open the app directly on a paper's pull request review. |
 | `galley doctor [dir]` | Tool versions, including the TeX Live year, and missing TeX packages. |
 | `galley template ...` | Adopt and test the team template (below). |
