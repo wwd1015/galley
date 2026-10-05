@@ -48,7 +48,7 @@ class Block:
         return self.x1 - self.x0
 
 
-def _caption_pattern(labels: list[str]) -> re.Pattern[str]:
+def caption_pattern(labels: list[str]) -> re.Pattern[str]:
     """``Figure 3. Caption`` / ``Table 2: Caption``. The punctuation tells a caption
     from a sentence that merely starts with ``Figure 3 shows``."""
     words = "|".join(re.escape(label) for label in sorted(labels, key=len, reverse=True))
@@ -72,8 +72,11 @@ def read_graphics(pdf: Path) -> dict[int, list[Rect]]:
     return graphics
 
 
-def read_blocks(pdf: Path) -> list[Block]:
-    """Text blocks in reading order, with footnote markers removed from the text."""
+def read_blocks(pdf: Path, marker: str | None = None) -> list[Block]:
+    """Text blocks in reading order, with footnote markers removed from the text.
+
+    With ``marker`` (a format string taking the number) markers are kept in that form.
+    """
     blocks: list[Block] = []
     with pymupdf.open(pdf) as document:
         for page_number, page in enumerate(document, start=1):
@@ -97,6 +100,8 @@ def read_blocks(pdf: Path) -> list[Block]:
                         if is_marker:
                             if line_index == 0 and span_index == 0:
                                 starts_with_marker = True
+                            if marker is not None:
+                                parts.append(marker.format(text.strip()))
                             continue
                         parts.append(text)
                         count = len(text.strip())
@@ -158,38 +163,48 @@ def body_size(blocks: list[Block]) -> float:
     return sizes.most_common(1)[0][0] if sizes else 10.0
 
 
+def figure_band(
+    caption: Block, graphics: dict[int, list[Rect]], settings: VerifySettings
+) -> tuple[float, float] | None:
+    """Vertical extent of the figure a caption belongs to, or None if no graphic is near.
+
+    The figure is the graphic nearest its caption, on the side the template puts figures.
+    """
+    rects = graphics.get(caption.page, [])
+    if settings.caption_below:
+        near = [r for r in rects if r[3] <= caption.y0 + 6 and caption.y0 - r[3] < 60]
+    else:
+        near = [r for r in rects if r[1] >= caption.y1 - 6 and r[1] - caption.y1 < 60]
+    if not near:
+        return None
+    top, bottom = min(r[1] for r in near), max(r[3] for r in near)
+    # Graphics that overlap the band (a legend box, a second panel) extend it.
+    for rect in rects:
+        if rect[1] < bottom and rect[3] > top and rect not in near:
+            top, bottom = min(top, rect[1]), max(bottom, rect[3])
+    top, bottom = top - 12, bottom + 12
+    if settings.caption_below:
+        bottom = min(bottom, caption.y0)
+    else:
+        top = max(top, caption.y1)
+    return top, bottom
+
+
 def drop_figure_text(
     blocks: list[Block], graphics: dict[int, list[Rect]], settings: VerifySettings
 ) -> tuple[list[Block], int]:
-    """Remove text that is part of a figure (axis labels, tick values, legends).
-
-    The figure is the graphic nearest its caption, on the side the template puts
-    figures; any text in that graphic's vertical band is not the document's prose.
-    """
-    pattern = _caption_pattern(settings.figure_labels)
+    """Remove text that is part of a figure (axis labels, tick values, legends):
+    any text in the figure's vertical band is not the document's prose."""
+    pattern = caption_pattern(settings.figure_labels)
     removed: set[int] = set()
     for caption in blocks:
         if not pattern.match(normalize(caption.text)):
             continue
-        rects = graphics.get(caption.page, [])
-        if settings.caption_below:
-            near = [r for r in rects if r[3] <= caption.y0 + 6 and caption.y0 - r[3] < 60]
-        else:
-            near = [r for r in rects if r[1] >= caption.y1 - 6 and r[1] - caption.y1 < 60]
-        if not near:
+        band = figure_band(caption, graphics, settings)
+        if band is None:
             continue
-        top, bottom = min(r[1] for r in near), max(r[3] for r in near)
-        # Graphics that overlap the band (a legend box, a second panel) extend it.
-        for rect in rects:
-            if rect[1] < bottom and rect[3] > top and rect not in near:
-                top, bottom = min(top, rect[1]), max(bottom, rect[3])
-        top, bottom = top - 12, bottom + 12
-        if settings.caption_below:
-            bottom = min(bottom, caption.y0)
-        else:
-            top = max(top, caption.y1)
         for index, block in enumerate(blocks):
-            if block.page == caption.page and block.y0 >= top and block.y1 <= bottom:
+            if block.page == caption.page and block.y0 >= band[0] and block.y1 <= band[1]:
                 removed.add(index)
     return [b for i, b in enumerate(blocks) if i not in removed], len(removed)
 
@@ -243,7 +258,7 @@ def split_sections(blocks: list[Block], headings: list[Heading]) -> list[Section
 
 
 def captions(blocks: list[Block], labels: list[str]) -> list[str]:
-    pattern = _caption_pattern(labels)
+    pattern = caption_pattern(labels)
     found: list[str] = []
     for block in blocks:
         match = pattern.match(normalize(block.text))

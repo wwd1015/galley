@@ -302,3 +302,33 @@ def test_load_settings_defaults_and_overrides(tmp_path: Path) -> None:
     path.write_text("text:\n  max-missing-run: 3\nnumbers:\n  extra: warn\n", encoding="utf-8")
     custom = load_settings(path)
     assert custom.max_missing_run == 3 and custom.extra_numbers_fail is False
+
+
+def test_split_bibliography_by_heading_and_by_title_line() -> None:
+    from galley.verify.model import split_bibliography
+
+    by_heading = model(("Intro", "Body."), ("References", "Diamond 1983. Bank runs."))
+    split_bibliography(by_heading)
+    assert [h.text for h in by_heading.headings] == ["Intro"]
+    assert by_heading.bibliography == "Diamond 1983. Bank runs."
+
+    by_line = model(("Intro", "Body text.\nReferences\nDiamond 1983. Bank runs."))
+    split_bibliography(by_line)
+    assert by_line.sections[0].text == "Body text."
+    assert by_line.bibliography == "Diamond 1983. Bank runs."
+
+    untouched = model(("Intro", "See the references in the annex."))
+    split_bibliography(untouched)
+    assert untouched.bibliography == ""
+
+
+def test_reference_list_is_compared_loosely() -> None:
+    source = DocModel(
+        footnotes=[], bibliography="Diamond and Dybvig 1983 Bank runs deposit insurance"
+    )
+    same = DocModel(
+        footnotes=[], bibliography="Diamond, D. and Dybvig, P. (1983). Bank runs, deposit insurance"
+    )
+    assert checks.check_notes(source, same).status == "pass"
+    result = checks.check_notes(source, DocModel(footnotes=[], bibliography=""))
+    assert result.status == "warn" and result.findings[0].kind == "reference-list"

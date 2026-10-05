@@ -43,6 +43,38 @@ local function join_caption_row_end(blocks)
   return out
 end
 
+-- Quarto ignores `tbl-pos` for tables printed by code chunks as raw LaTeX,
+-- so they float away from where the author put them.
+local table_position = nil
+
+local function read_meta(meta)
+  if meta["tbl-pos"] then
+    table_position = pandoc.utils.stringify(meta["tbl-pos"])
+  end
+end
+
+local function place_table(raw)
+  if not table_position or not raw.format:match("tex") then
+    return nil
+  end
+  local opening = "\\begin{table}"
+  local text = raw.text
+  if text == opening then
+    text = opening .. "[" .. table_position .. "]"
+  else
+    text = text:gsub("\\begin{table}(%s)", "\\begin{table}[" .. table_position .. "]%1")
+  end
+  if text == raw.text then
+    return nil
+  end
+  if raw.t == "RawInline" then
+    return pandoc.RawInline(raw.format, text)
+  end
+  return pandoc.RawBlock(raw.format, text)
+end
+
 return {
+  { Meta = read_meta },
+  { RawBlock = place_table, RawInline = place_table },
   { Blocks = join_caption_row_end },
 }

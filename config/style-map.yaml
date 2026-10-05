@@ -1,0 +1,48 @@
+# How `galley convert` maps the styles of a source document to Galley constructs.
+
+# Paragraph style -> fenced div class (the class must be one of the template's
+# `environments` in config/template.yaml). `title: true` uses the paragraph's
+# first sentence-like bold run as the environment's title, if it has one.
+styles:
+  Key Finding:
+    div: keyfinding
+  Key finding:
+    div: keyfinding
+  Recommendation:
+    div: recommendation
+
+# Styles that carry no meaning of their own: the text is kept, the style is
+# dropped, and nothing is reported.
+ignore:
+  - Normal
+  - Body Text
+  - First Paragraph
+  - Compact
+  - List Paragraph
+  - List Bullet
+  - List Bullet 2
+  - List Number
+  - List Number 2
+  - Caption
+  - Table Caption
+  - Image Caption
+  - Captioned Figure
+  - Figure
+  - Hyperlink
+  - Footnote Text
+  - Footnote Reference
+  - Table Grid
+  - Table
+  - Block Text
+  - Bibliography
+  - Default Paragraph Font
+  - Verbatim Char
+  - Source Code
+
+# Headings that mark the source's own reference list. When citations are
+# matched to references.bib the list is replaced by the generated bibliography.
+reference-headings: [References, Bibliography, Works cited, Sources]
+
+# Papers longer than this many words are split into sections/*.qmd by
+# top-level heading.
+split-sections-over-words: 6000

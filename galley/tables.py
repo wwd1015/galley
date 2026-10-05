@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import re
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -33,6 +35,19 @@ def _cell(value: Any, formatter: Formatter | None) -> str:
     if formatter is not None:
         return latex_escape(formatter(value))
     return latex_escape(str(value))
+
+
+def read_csv(path: str | Path) -> pd.DataFrame:
+    """Read a table exactly as written: every cell a string, blank headers kept.
+
+    Converted tables are printed verbatim so that no number is reformatted on
+    the way from the original document to the PDF.
+    """
+    with Path(path).open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.reader(handle))
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows[1:], columns=rows[0], dtype=str)
 
 
 def to_latex(
@@ -69,9 +84,12 @@ def to_latex(
         raise ValueError(f"align has {len(align)} columns, the table has {len(columns)}")
 
     header = " & ".join(latex_escape(c) for c in columns) + r" \\"
+    # By position, so that tables with repeated column names still work.
+    formatters = [resolved.get(c) for c in columns]
     rows = [
-        " & ".join(_cell(row[c], resolved.get(str(c))) for c in df.columns) + r" \\"
-        for _, row in df.iterrows()
+        " & ".join(_cell(value, fmt) for value, fmt in zip(values, formatters, strict=True))
+        + r" \\"
+        for values in df.itertuples(index=False, name=None)
     ]
     size = font_size if font_size is not None else str(config.tables.get("font-size", ""))
     spec = f"@{{}}{align}@{{}}"

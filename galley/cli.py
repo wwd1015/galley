@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 
 from galley import __version__, build, doctor, fidelity, hooks, manifest, scaffold, template
+from galley import convert as converter
 from galley import verify as verifier
 from galley.config import ConfigError, load_paper_config, read_paper_config
 
@@ -250,3 +251,47 @@ def hooks_command(paper_dir: Path = PAPER_ARGUMENT) -> None:
     except hooks.HookError as exc:
         _fail(exc)
     typer.echo(f"installed {path}")
+
+
+@app.command("convert")
+def convert_command(
+    source: str = typer.Argument(..., help="A .docx or .pdf file, or a Google Docs URL."),
+    out: Path = typer.Option(..., "--out", help="Directory for the new paper repo."),
+    bib: Path | None = typer.Option(None, "--bib", help="BibTeX file to match citations against."),
+    source_url: str = typer.Option("", "--source-url", help="Where the document lives online."),
+    style_map: Path | None = typer.Option(None, "--style-map", help="Path to a style-map.yaml."),
+    run_verify: bool = typer.Option(
+        True, "--verify/--no-verify", help="Finish by running galley verify (default)."
+    ),
+) -> None:
+    """Convert a Word, Google Docs or PDF whitepaper into a Galley paper repo."""
+    try:
+        if converter.GOOGLE_DOC.match(source):
+            source_url = source_url or source
+            path = converter.export_google_doc(source, out.parent / f".{out.name}-export.docx")
+        else:
+            path = Path(source)
+        conversion, report = converter.convert(
+            path,
+            out,
+            bib=bib,
+            source_url=source_url,
+            style_map_path=style_map,
+            run_verify=run_verify,
+        )
+    except converter.ConvertError as exc:
+        _fail(exc, 2)
+    typer.echo(f"converted to {out}")
+    typer.echo(
+        f"tables {len(conversion.tables)}, charts rebuilt {len(conversion.charts)}, "
+        f"figures needing data {len(conversion.needs_data)}, "
+        f"unmapped styles {len(conversion.unmapped_styles)}, "
+        f"unresolved citations {len(conversion.unresolved_citations)}"
+    )
+    typer.echo(f"wrote {out / converter.REPORT}")
+    if report is None:
+        typer.echo("verify: not run")
+        raise typer.Exit(0 if not run_verify else 1)
+    typer.echo(f"verify: {report['status'].upper()}")
+    if report["status"] != "pass":
+        raise typer.Exit(1)

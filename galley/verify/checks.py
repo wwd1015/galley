@@ -320,6 +320,24 @@ def check_notes(source: DocModel, candidate: DocModel) -> CheckResult:
         result.summary = (
             f"footnotes {len(source.footnotes)}/{len(candidate.footnotes)} (source/PDF)"
         )
+    if source.bibliography.strip():
+        listed = Counter(tokens(source.bibliography))
+        missing = listed - Counter(tokens(candidate.bibliography))
+        share = 1 - sum(missing.values()) / max(sum(listed.values()), 1)
+        if share < 0.9:
+            result.findings.append(
+                Finding(
+                    id="notes-reference-list",
+                    kind="reference-list",
+                    message=(
+                        f"only {share:.0%} of the words in the source's reference list appear in "
+                        "the PDF's bibliography; check that every entry is cited"
+                    ),
+                    fails=False,
+                    source=source.bibliography[:160],
+                    candidate=candidate.bibliography[:160],
+                )
+            )
     for key in candidate.unresolved_citations:
         result.findings.append(
             Finding(

@@ -12,7 +12,7 @@ from galley.verify.candidate import extract_candidate
 from galley.verify.checks import CheckResult, run_checks
 from galley.verify.extract_docx import extract_docx
 from galley.verify.extract_pdf import extract_pdf
-from galley.verify.model import DocModel
+from galley.verify.model import DocModel, split_bibliography
 from galley.verify.report import apply_acceptances, build_report, write_reports
 from galley.verify.settings import VerifySettings, load_settings
 
@@ -68,6 +68,8 @@ def verify(
         build.source_files(paper_dir, document),
         settings,
     )
+    split_bibliography(source_model)
+    split_bibliography(candidate_model)
     checks: list[CheckResult] = run_checks(source_model, candidate_model, settings)
     rejected = apply_acceptances(checks, paper_dir)
     images = visual.export(source, pdf, paper_dir, settings)

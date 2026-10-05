@@ -17,11 +17,13 @@ def root() -> Path:
     return found
 
 
-def setup(pgf: bool | None = None) -> Path:
-    """Make ``py/`` importable and apply the chart style. Call once per document."""
+def setup(pgf: bool | None = None) -> None:
+    """Make ``py/`` importable and apply the chart style. Call once per document.
+
+    Returns nothing, so that a chunk ending in ``paper.setup()`` prints nothing.
+    """
     paper_root = root()
     exhibits = str(paper_root / "py")
     if exhibits not in sys.path:
         sys.path.insert(0, exhibits)
     style.use(pgf=pgf)
-    return paper_root
