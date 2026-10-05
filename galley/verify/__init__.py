@@ -39,6 +39,7 @@ def verify(
     rebuild: bool = True,
     settings: VerifySettings | None = None,
     now: datetime | None = None,
+    progress: build.Progress = build._quiet,
 ) -> dict[str, Any]:
     """Run every check and write the reports into ``paper_dir``; return the report."""
     paper_dir = paper_dir.resolve()
@@ -52,7 +53,7 @@ def verify(
     pdf = paper_dir / f"{stem}.pdf"
     if rebuild:
         try:
-            result = build.build(paper_dir, now=now)
+            result = build.build(paper_dir, now=now, progress=progress)
         except build.BuildError as exc:
             raise VerifyError(str(exc)) from exc
         if result.pdf is None:
@@ -60,7 +61,9 @@ def verify(
     if not pdf.is_file():
         raise VerifyError(f"{pdf.name} not found; run `galley build` first")
 
+    progress("Reading the original document")
     source_model = extract_source(source, settings)
+    progress("Reading the rendered PDF")
     candidate_model = extract_candidate(
         pdf,
         paper_dir / f"{stem}.tex",
@@ -68,6 +71,7 @@ def verify(
         build.source_files(paper_dir, document),
         settings,
     )
+    progress("Comparing text, numbers, structure and exhibits")
     split_bibliography(source_model)
     split_bibliography(candidate_model)
     checks: list[CheckResult] = run_checks(source_model, candidate_model, settings)

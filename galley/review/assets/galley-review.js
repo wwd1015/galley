@@ -26,8 +26,7 @@
   };
 
   function send(action) {
-    action.nonce = Date.now() + ":" + Math.random();
-    window.dash_clientside.set_props("store-action", { data: action });
+    window.galleySend(action); // the ordered, acknowledged queue in galley-app.js
   }
 
   function el(tag, attrs, children) {
@@ -441,7 +440,6 @@
   function buildTopbar() {
     const bar = document.getElementById("gl-topbar");
     bar.replaceChildren(
-      el("span", { class: "gl-brand", text: "Galley Review" }),
       el("select", {
         id: "gl-pr",
         title: "Pull request",
@@ -669,11 +667,16 @@
   }
   setInterval(function () {
     const idle = document.hidden || Date.now() - G.lastActivity > 120000;
-    if (idle !== G.idle && window.dash_clientside && window.dash_clientside.set_props) {
+    if (idle !== G.idle && window.galleySend) {
       G.idle = idle;
       send({ type: "activity", idle: idle });
     }
   }, 5000);
 
-  window.galleyReview = { update: update, state: G };
+  function refresh() {
+    // The editor is laid out while its tab is hidden; re-measure when it is shown.
+    if (G.cm) G.cm.refresh();
+  }
+
+  window.galleyReview = { update: update, refresh: refresh, state: G };
 })();

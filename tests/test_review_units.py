@@ -178,7 +178,8 @@ def test_render_command_modes() -> None:
     html = preview.render_command(staged, "html")
     assert html[1:5] == ["render", "paper.galley-preview.qmd", "--profile", "review"]
     assert html[5:] == [
-        "-M", "galley-review:true", "--to", "html", "--embed-resources", "--lua-filter",
+        "-M", "galley-review:true", "-M", "echo:false", "-M", "warning:false",
+        "--to", "html", "--embed-resources", "--lua-filter",
         "_extensions/galley/galley/filters/galley-review.lua",
     ]  # fmt: skip
     assert preview.render_command(staged, "pdf")[-2:] == ["--to", "galley-pdf"]

@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-from galley import manifest, scaffold
+from galley import build, manifest, scaffold
 from galley import verify as verifier
 from galley.config import ConfigError, read_paper_config, tool_config_dir
 from galley.convert.ast import PandocError
@@ -193,6 +193,7 @@ def convert(
     style_map_path: Path | None = None,
     run_verify: bool = True,
     today: date | None = None,
+    progress: build.Progress = build._quiet,
 ) -> tuple[Conversion, dict[str, Any] | None]:
     """Convert ``source`` into a paper repo at ``out``; return the conversion and verify report."""
     suffix = source.suffix.lower()
@@ -209,6 +210,7 @@ def convert(
 
     style_map = load_style_map(style_map_path)
     settings = load_settings()
+    progress("Extracting text, tables, figures and charts")
     try:
         extension = scaffold.vendor_extension(out)
         config = read_paper_config(extension / PAPER_CONFIG)
@@ -227,6 +229,7 @@ def convert(
         )
 
     # Citations, and the source's own reference list.
+    progress("Matching citations to the bibliography")
     entries = parse_bib(bib) if bib else []
     cited = convert_citations(conversion.body, entries)
     conversion.body = cited.text
@@ -248,6 +251,7 @@ def convert(
             )
 
     # The original, kept read-only beside the conversion.
+    progress("Writing the paper repo")
     original = out / "source" / f"original{suffix}"
     shutil.copyfile(source, original)
     original.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
@@ -294,7 +298,7 @@ def convert(
     error = ""
     if run_verify:
         try:
-            report = verifier.verify(original, out)
+            report = verifier.verify(original, out, progress=progress)
         except verifier.VerifyError as exc:
             error = str(exc)
     (out / REPORT).write_text(

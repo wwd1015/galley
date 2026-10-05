@@ -1,6 +1,6 @@
 # PLAN
 
-All five phases in SPEC.md section 6 are built. 168 tests pass locally with
+All five phases in SPEC.md section 6 are built. 178 tests pass locally with
 ruff and mypy strict clean. This file records what was built, where it departs
 from the spec, and what has not been proven.
 
@@ -13,6 +13,16 @@ from the spec, and what has not been proven.
 | 3. Verify | Catches a dropped paragraph, a changed number, a missing figure, a renamed heading | Met locally (`tests/test_verify_integration.py`). |
 | 4. Convert | Three real legacy whitepapers convert with verify passing or every failure explained | Met only on synthetic papers: two generated `.docx` files and one typeset PDF (`tests/test_convert.py`). No real legacy paper has been converted. |
 | 5. Review app | Two users on separate machines see each other's comment in both panes within 15 seconds | Simulated: two clones and a fake `gh` (`tests/test_review_session.py`), plus a click-through in a headless browser. Never run against real GitHub. |
+
+## The app (added after the five phases)
+
+`galley app <workspace>` puts every step in one window: Papers, Convert,
+Build, Verify and Review tabs (`galley/workbench.py`, `assets/galley-app.js`).
+Long steps run as background jobs and report each stage. It was clicked
+through in a headless browser: doctor, a Word conversion, a build, the verify
+results, and a review with two actions sent in the same instant. The embedded
+PDF on the Build tab did not draw in the headless browser (it has no PDF
+viewer), so that one view is unconfirmed; the PDF itself is served correctly.
 
 ## Not proven
 

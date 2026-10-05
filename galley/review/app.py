@@ -1,7 +1,8 @@
-"""The Dash app: a thin shell that carries state between the session and the browser.
+"""The review controller: applies browser actions to a session and publishes its state.
 
-The page itself (editor, inline threads, preview pane) is drawn by
-``assets/galley-review.js`` from the state snapshot this module publishes.
+The review page (editor, inline threads, preview pane) is drawn by
+``assets/galley-review.js`` from the snapshot this module publishes. The Dash
+app that hosts it is in :mod:`galley.workbench`.
 """
 
 from __future__ import annotations
@@ -10,13 +11,10 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
-from flask import Response, abort, send_from_directory
-
 from galley.gh import Gh, GhError
 from galley.review import preview as previews
 from galley.review.git import GitError
-from galley.review.preview import PREVIEW_TAG, PreviewWorker
+from galley.review.preview import PreviewWorker
 from galley.review.session import ReviewError, ReviewSession
 from galley.review.sync import Poller
 
@@ -32,6 +30,10 @@ class Controller:
         self.poller = poller
         self.render_changes = 0
         self._lock = threading.Lock()
+
+    def stop(self) -> None:
+        self.preview.stop()
+        self.poller.stop()
 
     def render_changed(self) -> None:
         self.render_changes += 1
@@ -110,86 +112,8 @@ class Controller:
             session.notify(f"Malformed request from the page: {exc}", "error")
 
 
-def layout() -> html.Div:
-    return html.Div(
-        id="galley-app",
-        children=[
-            html.Div(id="gl-topbar"),
-            html.Div(id="gl-banner"),
-            html.Div(
-                id="gl-panes",
-                children=[
-                    html.Div(
-                        id="gl-left",
-                        children=[html.Div(id="gl-loose"), html.Div(id="gl-editor")],
-                    ),
-                    html.Div(
-                        id="gl-right",
-                        children=[
-                            html.Iframe(id="gl-preview", title="Preview"),
-                            html.Div(id="gl-preview-empty"),
-                        ],
-                    ),
-                ],
-            ),
-            html.Div(id="gl-toast"),
-            dcc.Store(id="store-state"),
-            dcc.Store(id="store-file"),
-            dcc.Store(id="store-action"),
-            dcc.Store(id="store-seen", data={"version": "", "epoch": -1}),
-            dcc.Interval(id="tick", interval=1000),
-        ],
-    )
-
-
-def create_app(controller: Controller, repo_dir: Path) -> Dash:
-    app = Dash(
-        __name__,
-        title="Galley Review",
-        update_title="",
-        assets_folder=str(Path(__file__).resolve().parent / "assets"),
-    )
-    app.layout = layout()
-
-    @app.callback(
-        Output("store-state", "data"),
-        Output("store-file", "data"),
-        Input("tick", "n_intervals"),
-        Input("store-action", "data"),
-        State("store-seen", "data"),
-    )
-    def publish(_ticks: int | None, action: dict[str, Any] | None, seen: dict[str, Any]) -> Any:
-        if ctx.triggered_id == "store-action" and action:
-            controller.handle(action)
-        state: Any = no_update
-        file: Any = no_update
-        if controller.version() != seen.get("version"):
-            state = controller.snapshot()
-        if controller.session.file_epoch != seen.get("epoch"):
-            file = controller.file()
-        return state, file
-
-    app.clientside_callback(
-        "function(state, file) { return window.galleyReview.update(state, file); }",
-        Output("store-seen", "data"),
-        Input("store-state", "data"),
-        Input("store-file", "data"),
-    )
-
-    def preview_file(name: str) -> Response:
-        # Only the temporary preview outputs are served, never the rest of the repo.
-        if PREVIEW_TAG not in name.split("/")[0]:
-            abort(404)
-        response = send_from_directory(repo_dir, name)
-        response.headers["Cache-Control"] = "no-store"
-        return response
-
-    app.server.add_url_rule("/preview/<path:name>", view_func=preview_file)
-    return app
-
-
-def build(repo_dir: Path, gh: Gh, *, pr: int | None = None) -> tuple[Dash, Controller]:
-    """Wire up a session, its poller and preview worker, and the app around them."""
+def build_controller(repo_dir: Path, gh: Gh, *, pr: int | None = None) -> Controller:
+    """Wire up a review session for one paper repo, with its poller and preview worker."""
     repo_dir = repo_dir.resolve()
     session = ReviewSession(repo_dir, gh)
     session.start()
@@ -214,4 +138,4 @@ def build(repo_dir: Path, gh: Gh, *, pr: int | None = None) -> tuple[Dash, Contr
     poller.start()
     if session.pr is not None:
         preview.request(immediate=True)
-    return create_app(controller, repo_dir), controller
+    return controller

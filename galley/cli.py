@@ -297,29 +297,57 @@ def convert_command(
         raise typer.Exit(1)
 
 
-@app.command("review")
-def review_command(
-    paper_dir: Path = PAPER_ARGUMENT,
-    pr: int | None = typer.Option(None, "--pr", help="Pull request number to open."),
-    port: int = typer.Option(8050, "--port", help="Local port."),
-    hostname: str | None = typer.Option(
-        None, "--hostname", help="GitHub Enterprise host (default: github.com)."
-    ),
-    browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the app in a browser."),
-) -> None:
-    """Review a paper's pull request locally, with a live typeset preview."""
+def _serve(workspace: Path, *, tab: str, pr: int | None, port: int, hostname: str | None,
+           browser: bool) -> None:  # fmt: skip
     import webbrowser
 
-    from galley.gh import Gh, GhError
-    from galley.review import app as review_app
+    from galley import workbench as wb
 
-    try:
-        dash_app, _ = review_app.build(paper_dir, Gh(paper_dir.resolve(), hostname), pr=pr)
-    except (GhError, ConfigError) as exc:
-        _fail(exc, 2)
+    bench = wb.Workbench(workspace, hostname=hostname)
+    bench.tab = tab
+    if tab == "review":
+        if bench.paper_dir is None:
+            _fail(f"{workspace} is not a Galley paper repo", 2)
+        bench.open_review(pr)
+        if bench.review is None:
+            _fail(bench.review_error, 2)
+    dash_app = wb.create_app(bench)
     url = f"http://127.0.0.1:{port}"
-    typer.echo(f"Galley Review is running at {url} (Ctrl+C to stop)")
+    typer.echo(f"Galley is running at {url} (Ctrl+C to stop)")
     if browser:
         webbrowser.open(url)
     # Bound to the loopback interface only: the app acts with your GitHub credentials.
     dash_app.run(host="127.0.0.1", port=port, debug=False)
+
+
+PORT_OPTION = typer.Option(8050, "--port", help="Local port.")
+HOSTNAME_OPTION = typer.Option(
+    None, "--hostname", help="GitHub Enterprise host (default: github.com)."
+)
+BROWSER_OPTION = typer.Option(True, "--browser/--no-browser", help="Open the app in a browser.")
+
+
+@app.command("app")
+def app_command(
+    workspace: Path = typer.Argument(
+        Path("."), help="Folder that holds (or will hold) your paper repos."
+    ),
+    port: int = PORT_OPTION,
+    hostname: str | None = HOSTNAME_OPTION,
+    browser: bool = BROWSER_OPTION,
+) -> None:
+    """Open the Galley app: convert, build, verify and review papers in one window."""
+    workspace.mkdir(parents=True, exist_ok=True)
+    _serve(workspace, tab="papers", pr=None, port=port, hostname=hostname, browser=browser)
+
+
+@app.command("review")
+def review_command(
+    paper_dir: Path = PAPER_ARGUMENT,
+    pr: int | None = typer.Option(None, "--pr", help="Pull request number to open."),
+    port: int = PORT_OPTION,
+    hostname: str | None = HOSTNAME_OPTION,
+    browser: bool = BROWSER_OPTION,
+) -> None:
+    """Open the Galley app on a paper's pull request review, with a live typeset preview."""
+    _serve(paper_dir, tab="review", pr=pr, port=port, hostname=hostname, browser=browser)

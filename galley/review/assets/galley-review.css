@@ -90,3 +90,63 @@ button, select, input, textarea { font: inherit; }
   border-radius: 6px; background: #1f2328; color: #fff; white-space: pre-wrap; display: none;
   z-index: 50; box-shadow: 0 8px 24px rgba(31, 35, 40, .2); }
 #gl-toast.error { background: #a40e26; }
+
+/* ---- app shell: tabs around the review page ---- */
+#wb-nav { display: flex; align-items: center; gap: 12px; padding: 0 12px; background: #24292f;
+  color: #fff; min-height: 44px; }
+.wb-brand { font-weight: 700; font-size: 16px; margin-right: 8px; }
+#wb-nav nav { display: flex; gap: 2px; align-self: stretch; }
+.wb-tabbtn { border: 0; background: none; color: #d0d7de; padding: 0 14px; cursor: pointer;
+  border-bottom: 3px solid transparent; font-weight: 500; }
+.wb-tabbtn:hover { color: #fff; }
+.wb-tabbtn.active { color: #fff; border-bottom-color: #fd8c73; }
+#wb-nav .wb-muted { color: #adbac7; }
+.wb-select { padding: 3px 6px; border-radius: 6px; border: 1px solid #57606a; background: #32383f;
+  color: #fff; max-width: 260px; }
+#wb-job:empty { display: none; }
+#wb-job { background: #fff; border-bottom: 1px solid #d0d7de; padding: 8px 16px; }
+.wb-jobhead { display: flex; gap: 10px; align-items: center; }
+.wb-steps { margin: 6px 0 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap;
+  gap: 4px 18px; font-size: 13px; color: #656d76; }
+.wb-steps li.current { color: #9a6700; font-weight: 600; }
+.wb-jobsummary { margin-top: 6px; white-space: pre-wrap; }
+.wb-error { margin: 6px 0 0 0; padding: 8px; background: #ffebe9; border: 1px solid #ff8182;
+  border-radius: 6px; white-space: pre-wrap; max-height: 180px; overflow: auto; font-size: 12px; }
+#wb-main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wb-tab { display: none; flex: 1; min-height: 0; overflow: auto; padding: 16px 24px; }
+.wb-tab.active { display: block; }
+#wb-tab-review { padding: 0; overflow: hidden; }
+#wb-tab-review.active { display: flex; flex-direction: column; }
+#wb-review-empty:empty { display: none; }
+#wb-review-empty { padding: 16px 24px; }
+.wb-tab h2 { margin: 0 0 8px 0; font-size: 20px; }
+.wb-tab h3 { margin: 20px 0 8px 0; font-size: 15px; }
+.wb-muted { color: #656d76; }
+.wb-strong { font-weight: 600; font-size: 14px; }
+.wb-flow { background: #fff; border: 1px solid #d0d7de; border-radius: 6px;
+  padding: 10px 10px 10px 34px; max-width: 860px; }
+.wb-table { border-collapse: collapse; background: #fff; margin: 8px 0; max-width: 100%; }
+.wb-table th, .wb-table td { border: 1px solid #d0d7de; padding: 5px 10px; text-align: left;
+  vertical-align: top; font-size: 13px; }
+.wb-table th { background: #f6f8fa; }
+.wb-table code { font-size: 11px; color: #656d76; }
+.wb-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin: 8px 0; }
+.wb-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px;
+  max-width: 1000px; margin: 10px 0; }
+.wb-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #656d76; }
+.wb-input { padding: 5px 8px; border: 1px solid #d0d7de; border-radius: 6px; min-width: 220px;
+  color: #1f2328; }
+.wb-drop { border: 2px dashed #afb8c1; border-radius: 8px; padding: 22px; text-align: center;
+  background: #fff; color: #656d76; cursor: pointer; max-width: 1000px; box-sizing: border-box; }
+.wb-report { background: #fff; border: 1px solid #d0d7de; border-radius: 6px; padding: 4px 16px;
+  max-width: 1000px; }
+.wb-report table { border-collapse: collapse; }
+.wb-report th, .wb-report td { border: 1px solid #d0d7de; padding: 4px 10px; }
+.wb-report h1 { display: none; }
+.wb-problems { color: #cf222e; }
+.wb-split { display: grid; grid-template-columns: minmax(380px, 1fr) minmax(380px, 1fr); gap: 20px; }
+.wb-pdf { width: 100%; height: 78vh; border: 1px solid #d0d7de; background: #fff; }
+.wb-visual { display: flex; flex-wrap: wrap; gap: 12px; }
+.wb-visual figure { margin: 0; }
+.wb-visual img { max-height: 320px; max-width: 420px; border: 1px solid #d0d7de; background: #fff; }
+.wb-visual figcaption { font-size: 12px; color: #656d76; }

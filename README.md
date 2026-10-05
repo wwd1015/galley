@@ -18,6 +18,25 @@ uv run pytest
 Needs Python 3.12, [uv](https://docs.astral.sh/uv/), Quarto 1.4 or later, and
 the [`gh` CLI](https://cli.github.com) for `galley review`.
 
+## The app
+
+```sh
+uv run galley app ~/papers        # any folder that holds, or will hold, your paper repos
+```
+
+One local window (127.0.0.1 only) with a tab for each step:
+
+| Tab | What you do there |
+| --- | --- |
+| Papers | See every paper in the workspace with its build and verify status, create a new paper, run the toolchain check. |
+| 1 Convert | Drop a `.docx` or `.pdf` (or give a path or a link-shared Google Docs URL), name the paper, convert. The conversion report appears below. |
+| 2 Build | Build the PDF. Shows the data manifest, the build checks, tool versions and the PDF. |
+| 3 Verify | Compare the original with the rendered PDF. Shows each check and finding, the side-by-side images, and lets a person accept a finding. |
+| 4 Review | The pull request review with inline comments and live preview. Needs the paper pushed to GitHub with an open PR. |
+
+A strip under the tabs shows the running step and each stage it has passed.
+Every tab does what the matching command below does.
+
 ## Commands
 
 | Command | Purpose |
@@ -28,7 +47,8 @@ the [`gh` CLI](https://cli.github.com) for `galley review`.
 | `galley convert <input> --out <dir>` | Convert a `.docx`, a link-shared Google Doc URL or a `.pdf` into a paper repo, then verify it. |
 | `galley verify <source> [dir]` | Compare the original document with the rendered PDF; non-zero exit on content loss. |
 | `galley hooks [dir]` | Install a pre-commit hook that runs `galley verify` on a converted paper. |
-| `galley review [dir]` | Local review app on a pull request, with a live typeset preview. |
+| `galley app [workspace]` | The app: convert, build, verify and review in one window. |
+| `galley review [dir]` | Open the app directly on a paper's pull request review. |
 | `galley doctor [dir]` | Tool versions, including the TeX Live year, and missing TeX packages. |
 | `galley template ...` | Adopt and test the team template (below). |
 

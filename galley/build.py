@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -137,8 +138,20 @@ def render(
     )
 
 
-def build(paper_dir: Path, *, now: datetime | None = None) -> BuildResult:
-    """Run the full build for the paper in ``paper_dir``."""
+Progress = Callable[[str], None]
+
+
+def _quiet(_step: str) -> None:
+    """Default progress hook: say nothing."""
+
+
+def build(
+    paper_dir: Path, *, now: datetime | None = None, progress: Progress = _quiet
+) -> BuildResult:
+    """Run the full build for the paper in ``paper_dir``.
+
+    ``progress`` is called with the name of each step as it starts.
+    """
     paper_dir = paper_dir.resolve()
     config = load_paper_config(paper_dir)
     document = main_document(paper_dir)
@@ -149,6 +162,7 @@ def build(paper_dir: Path, *, now: datetime | None = None) -> BuildResult:
     checks: dict[str, Any] = {}
 
     # 1. Data must match the manifest before any code runs on it.
+    progress("Checking data against the manifest")
     try:
         data_problems = manifest.verify(paper_dir)
         data_hashes = manifest.hashes(paper_dir)
@@ -161,6 +175,7 @@ def build(paper_dir: Path, *, now: datetime | None = None) -> BuildResult:
     pages = 0
     if not data_problems:
         # 2. Render.
+        progress("Rendering the PDF")
         result = render(paper_dir, config)
         candidate = paper_dir / f"{stem}.pdf"
         if result.returncode != 0 or not candidate.is_file():
@@ -171,6 +186,7 @@ def build(paper_dir: Path, *, now: datetime | None = None) -> BuildResult:
             with pymupdf.open(pdf) as rendered:
                 pages = rendered.page_count
             # 3. Checks on what was rendered.
+            progress("Checking references, citations and chart fonts")
             tex_path = paper_dir / f"{stem}.tex"
             tex = tex_path.read_text(encoding="utf-8") if tex_path.is_file() else ""
             checks["unresolved-references"] = unresolved_references(tex)

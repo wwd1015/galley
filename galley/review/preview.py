@@ -130,7 +130,12 @@ def stage(paper_dir: Path, document: str, texts: dict[str, str], threads: list[T
 def render_command(staged: Path, mode: str) -> list[str]:
     """The quarto command for a preview. ``mode`` is ``html`` (fast) or ``pdf`` (proof)."""
     quarto = shutil.which("quarto") or "quarto"
-    command = [quarto, "render", staged.name, "--profile", "review", "-M", "galley-review:true"]
+    # The copy is not in the project's render list, so the project's execute options
+    # do not reach it; hide code and warnings explicitly.
+    command = [
+        quarto, "render", staged.name, "--profile", "review",
+        "-M", "galley-review:true", "-M", "echo:false", "-M", "warning:false",
+    ]  # fmt: skip
     if mode == "pdf":
         return [*command, "--to", "galley-pdf"]
     review_filter = EXTENSION_DIR / "filters" / "galley-review.lua"

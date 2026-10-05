@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from galley.review import anchors, preview
-from galley.review.app import Controller, build, create_app
+from galley.review.app import Controller, build_controller
 from galley.review.preview import PreviewWorker
 from galley.review.session import ReviewError, ReviewSession
 from galley.review.sync import ACTIVE_SECONDS, Poller
@@ -267,30 +267,13 @@ def test_controller_applies_actions_and_reports_errors(env: ReviewEnv) -> None:
     assert controller.file()["path"] == "paper.qmd"
 
 
-def test_app_serves_page_and_only_preview_files(env: ReviewEnv) -> None:
-    controller = controller_for(env)
-    app = create_app(controller, env.bob_dir)
-    (env.bob_dir / "paper.galley-preview.html").write_text("<p>preview</p>", encoding="utf-8")
-    client = app.server.test_client()
-    assert client.get("/").status_code == 200
-    layout = client.get("/_dash-layout").get_json()
-    assert "gl-editor" in str(layout) and "store-action" in str(layout)
-    served = client.get("/preview/paper.galley-preview.html")
-    assert served.status_code == 200 and served.headers["Cache-Control"] == "no-store"
-    assert client.get("/preview/paper.qmd").status_code == 404
-    assert client.get("/preview/.git/config").status_code == 404
-    for asset in ("galley-review.js", "galley-review.css", "00-vendor/codemirror.min.js"):
-        assert client.get(f"/assets/{asset}").status_code == 200, asset
-
-
-def test_build_selects_the_only_pull_request(env: ReviewEnv) -> None:
-    app, controller = build(env.bob_dir, env.bob)
+def test_build_controller_selects_the_only_pull_request(env: ReviewEnv) -> None:
+    controller = build_controller(env.bob_dir, env.bob)
     try:
         assert controller.session.pr is not None and controller.session.pr["number"] == 1
-        assert app.title == "Galley Review"
+        assert controller.snapshot()["render"]["state"] in ("waiting", "rendering", "ok", "error")
     finally:
-        controller.preview.stop()
-        controller.poller.stop()
+        controller.stop()
 
 
 @pytest.mark.tex
