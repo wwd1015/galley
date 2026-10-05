@@ -1,0 +1,7 @@
+# Thresholds for the template fidelity test (golden document vs reference PDF).
+dpi: 100
+# Grey-level difference (0-255) below which two pixels count as equal.
+pixel-tolerance: 32
+# Largest share of differing pixels allowed on any page. A single changed
+# digit is about 0.003% of a page at 100 dpi, so keep this at or near zero.
+max-page-diff: 0.0

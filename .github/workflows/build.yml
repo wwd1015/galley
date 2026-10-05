@@ -1,0 +1,53 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.9.36
+          tinytex: true
+
+      - name: Install Python dependencies
+        run: uv sync --locked
+
+      - name: Install the template's TeX packages
+        run: |
+          echo "$HOME/.TinyTeX/bin/x86_64-linux" >> "$GITHUB_PATH"
+          export PATH="$HOME/.TinyTeX/bin/x86_64-linux:$PATH"
+          tlmgr install $(uv run galley template packages)
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Template fidelity (golden document vs reference PDF)
+        if: always()
+        run: uv run galley template verify
+
+      - name: Upload golden PDF and diff images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden
+          path: |
+            .galley-build/golden/golden.pdf
+            .galley-build/golden/golden.tex
+            .galley-build/diff/
+          if-no-files-found: ignore

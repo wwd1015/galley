@@ -1,0 +1,12 @@
+galley:
+  environments:
+    keyfinding:
+      env: keyfinding
+    recommendation:
+      env: recommendation
+      optional-arg: title
+    panel:
+      env: wppanel
+      arg: label
+  tables:
+    font-size: small

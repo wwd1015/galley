@@ -1,0 +1,80 @@
+# How Galley adopts a team TeX template as the `galley-pdf` Quarto format.
+# Everything template-specific lives in this file and in the source directory;
+# `galley template adopt` regenerates the extension from them.
+#
+# The values below describe the STAND-IN template in template/. To switch to
+# the real team template: replace template/, update this file, run
+# `galley template adopt`, then rebuild tests/golden/ against the new class.
+
+name: standin
+source: template            # directory holding the team's files (never edited)
+main: whitepaper.tex        # the team .tex that becomes the Pandoc template
+resources:                  # copied byte-for-byte into the extension
+  - whitepaper.cls
+  - logo.pdf
+engine: xelatex             # pdflatex | xelatex | lualatex
+cite-method: natbib         # biblatex | natbib | citeproc
+
+# TeX Live packages the template needs beyond TinyTeX's base set.
+tex-packages:
+  - caption
+  - enumitem
+  - fancyhdr
+  - float
+  - natbib
+  - tcolorbox
+  - tex-gyre
+  - titlesec
+
+# Literal text in `main` -> Pandoc template syntax. `match` replaces one exact
+# string; `from`/`to` replaces everything from the start of `from` through the
+# end of `to`. Each anchor must occur exactly once. Text outside replacements
+# is kept verbatim (literal `$` is escaped for Pandoc automatically).
+replacements:
+  - match: '\title{Liquidity Stress Testing Framework}'
+    with: '\title{$title$}'
+  - match: '\subtitle{Methodology and 2026 calibration}'
+    with: '$if(subtitle)$\subtitle{$subtitle$}$endif$'
+  - match: '\author{Risk Analytics Team}'
+    with: '\author{$for(author)$$author$$sep$ \and $endfor$}'
+  - match: '\date{October 2026}'
+    with: '\date{$date$}'
+  - match: '\docid{WP-2026-014}'
+    with: '\docid{$document-id$}'
+  - match: '\classification{Internal}'
+    with: '\classification{$classification$}'
+  - match: '\docversion{1.0}'
+    with: '\docversion{$version$}'
+  - from: '\begin{abstract}'
+    to: '\end{abstract}'
+    with: |-
+      $if(abstract)$
+      \begin{abstract}
+      $abstract$
+      \end{abstract}
+      $endif$
+  - from: '\section{Introduction}'
+    to: '\end{recommendation}'
+    with: '$body$'
+  - match: '\bibliography{references}'
+    with: '\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}'
+
+# Extra Quarto options for the format, for conventions the class cannot set.
+format-options:
+  date-format: "MMMM YYYY"
+
+# The Pandoc glue block is inserted immediately before this anchor.
+glue-before: '\begin{document}'
+
+# Fenced div class -> LaTeX environment. `optional-arg` / `arg` name a div
+# attribute passed as [..] / {..}.
+environments:
+  keyfinding:
+    env: keyfinding
+  recommendation:
+    env: recommendation
+    optional-arg: title
+
+# Table conventions applied by galley-tables.lua.
+tables:
+  font-size: small          # LaTeX size command name, or omit

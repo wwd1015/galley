@@ -1,0 +1,77 @@
+---
+title: "Liquidity Stress Testing Framework"
+subtitle: "Golden fidelity document"
+author:
+  - Risk Analytics Team
+  - Treasury Modelling
+date: "October 2026"
+document-id: WP-TEST-001
+classification: Confidential
+version: "0.9"
+abstract: |
+  This document exercises every feature of the team template so that the
+  Galley output can be compared, page by page, with the same content typeset
+  directly through the original class.
+bibliography: references.bib
+format: galley-pdf
+---
+
+# Introduction {#sec-intro}
+
+Liquidity stress testing follows the supervisory framework [@bcbs2013]. The
+classic account of bank runs is @diamond1983. Text can carry *emphasis*,
+**strong emphasis** and `inline code`, and a footnote.[^horizon]
+
+[^horizon]: The survival horizon is 30 calendar days, costing $1.2m a year to monitor.
+
+## Scope
+
+The framework covers three things:
+
+- retail and wholesale deposits;
+- committed credit and liquidity facilities;
+- collateral calls on derivatives.
+
+It is applied in two steps:
+
+1. Project contractual and behavioural cash flows.
+2. Compare cumulative net outflows with the liquidity buffer.
+
+### Scenario design
+
+Scenarios combine market-wide and firm-specific shocks.
+
+#### Idiosyncratic stress
+
+A two-notch downgrade triggers wholesale funding run-off of 40%.
+
+#### Market stress
+
+Haircuts on level 2 assets widen by 15 percentage points.
+
+::: {.keyfinding}
+The 30-day survival horizon is met in every scenario, with a minimum buffer
+of 112% of net outflows.
+:::
+
+::: {.recommendation title="Next step"}
+Recalibrate deposit outflow rates every quarter.
+:::
+
+# Results {#sec-results}
+
+@fig-survival shows the survival curve and @tbl-outflows lists the outflow
+assumptions discussed in @sec-intro.
+
+![Cumulative liquidity buffer over the stress horizon](survival-curve.pdf){#fig-survival width=70%}
+
+| Category            | Outflow rate | Balance ($m) |
+|:--------------------|-------------:|-------------:|
+| Stable retail       |           5% |       12,400 |
+| Less stable retail  |          10% |        6,150 |
+| Operational         |          25% |        3,980 |
+| Non-operational     |          40% |        2,275 |
+
+: Outflow assumptions by deposit category {#tbl-outflows}
+
+The liquidity coverage ratio is $\mathit{LCR} = \mathit{HQLA} / \mathit{NCO} \ge 100\%$.
