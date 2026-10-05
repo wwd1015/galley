@@ -134,7 +134,15 @@ def render_command(staged: Path, mode: str) -> list[str]:
     if mode == "pdf":
         return [*command, "--to", "galley-pdf"]
     review_filter = EXTENSION_DIR / "filters" / "galley-review.lua"
-    return [*command, "--to", "html", "--lua-filter", review_filter.as_posix()]
+    # Self-contained, so the preview pane needs nothing else from the repo.
+    return [
+        *command,
+        "--to",
+        "html",
+        "--embed-resources",
+        "--lua-filter",
+        review_filter.as_posix(),
+    ]
 
 
 def output_name(document: str, mode: str) -> str:

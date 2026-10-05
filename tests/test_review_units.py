@@ -177,8 +177,10 @@ def test_render_command_modes() -> None:
     staged = Path("paper.galley-preview.qmd")
     html = preview.render_command(staged, "html")
     assert html[1:5] == ["render", "paper.galley-preview.qmd", "--profile", "review"]
-    assert html[-4:] == ["--to", "html", "--lua-filter",
-                         "_extensions/galley/galley/filters/galley-review.lua"]  # fmt: skip
+    assert html[5:] == [
+        "-M", "galley-review:true", "--to", "html", "--embed-resources", "--lua-filter",
+        "_extensions/galley/galley/filters/galley-review.lua",
+    ]  # fmt: skip
     assert preview.render_command(staged, "pdf")[-2:] == ["--to", "galley-pdf"]
     assert preview.output_name("paper.qmd", "pdf") == "paper.galley-preview.pdf"
     assert preview.output_name("paper.qmd", "html") == "paper.galley-preview.html"

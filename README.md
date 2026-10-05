@@ -11,10 +11,78 @@ existing LaTeX template. See [SPEC.md](SPEC.md) for the full design and
 uv sync
 quarto install tinytex                      # or any TeX Live install
 tlmgr install $(uv run galley template packages)
+uv run galley doctor                        # reports versions and anything missing
 uv run pytest
 ```
 
-Needs Python 3.12, [uv](https://docs.astral.sh/uv/) and Quarto 1.4 or later.
+Needs Python 3.12, [uv](https://docs.astral.sh/uv/), Quarto 1.4 or later, and
+the [`gh` CLI](https://cli.github.com) for `galley review`.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `galley new <slug>` | Scaffold a paper repo with an example chart and table, the vendored extension and a CI workflow. |
+| `galley build [dir]` | Verify the data manifest, render the PDF, run checks, write `build-report.json`. |
+| `galley data add <file>` / `galley data verify` | Pin a data file by SHA-256 in `data/manifest.yaml`; check every file against it. |
+| `galley convert <input> --out <dir>` | Convert a `.docx`, a link-shared Google Doc URL or a `.pdf` into a paper repo, then verify it. |
+| `galley verify <source> [dir]` | Compare the original document with the rendered PDF; non-zero exit on content loss. |
+| `galley hooks [dir]` | Install a pre-commit hook that runs `galley verify` on a converted paper. |
+| `galley review [dir]` | Local review app on a pull request, with a live typeset preview. |
+| `galley doctor [dir]` | Tool versions, including the TeX Live year, and missing TeX packages. |
+| `galley template ...` | Adopt and test the team template (below). |
+
+## Writing a paper
+
+```sh
+galley new liquidity-2026 && cd liquidity-2026
+galley build .
+```
+
+- `paper.qmd` declares nothing about layout; `_quarto.yml` sets `format: galley-pdf`.
+- Chart functions live in `py/exhibits/` as pure `(df) -> Figure` functions.
+  Chunks load data and call them. Build the `Figure` directly rather than
+  through `pyplot`, so a chunk shows it once.
+- `paper.setup()` in the first chunk makes `py/` importable and applies the
+  chart style. With `style.pgf: true` in the template config, chart text is
+  typeset by the template's TeX engine in the template's fonts.
+- Tables: `print(tables.to_latex(df, formats={"rate": "percent:1"}))` in a
+  chunk with `#| output: asis`. Number formats (`number`, `percent`, `bp`,
+  `currency`) live in `galley.formatting`.
+- Every file under `data/` must be in `data/manifest.yaml`; the build fails on
+  a hash mismatch or an unlisted file.
+- `_freeze/` is committed, so a clean checkout only re-runs code that changed.
+
+## Converting a legacy paper
+
+```sh
+galley convert old-paper.docx --out papers/old-paper --bib references.bib
+```
+
+Styles map to template environments through `config/style-map.yaml`; unknown
+styles are reported, never dropped. Tables become CSVs, Word charts are rebuilt
+from their embedded data, and images with no data are marked
+`galley-status="needs-data"`. `conversion-report.md` lists everything a person
+must look at and ends with the `galley verify` result. The
+`galley-convert` and `galley-verify` skills in `.claude/skills/` drive the
+judgment calls on top of these commands.
+
+To accept a difference `galley verify` flags, add its id to
+`verify-accept.yaml` in the paper with a `reason`. A numeric difference also
+needs `approved-by` naming a person; the CLI rejects anything else.
+
+## Reviewing
+
+```sh
+cd <paper-repo> && galley review . --pr 12      # --hostname for GitHub Enterprise
+```
+
+Runs on `127.0.0.1` only and uses your `gh auth` login; no token is stored.
+Hover a line number and press **+** to comment. Comments are real pull request
+review comments, so they also appear on GitHub. A line outside the PR's diff
+gets a file-level comment with a hidden anchor, which the app shows on its
+line. Edits are saved to your working tree; **Commit & push** sends them to
+the PR branch. The right pane re-renders 1.5 seconds after you stop typing.
 
 ## How a template is adopted
 
