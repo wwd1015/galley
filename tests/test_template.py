@@ -39,6 +39,9 @@ def make_config(**overrides: object) -> TemplateConfig:
         environments={"keyfinding": {"env": "keyfinding"}},
         tables={"font-size": "small"},
         format_options={},
+        numbers={},
+        style={},
+        scaffold_metadata={},
     )
     return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
 
@@ -149,7 +152,7 @@ def test_adopt_then_check_is_clean_and_detects_drift(tmp_path: Path) -> None:
     written = template.adopt(config, tmp_path, "1.0.0")
 
     extension = tmp_path / template.EXTENSION_DIR
-    assert {p.name for p in written} == {"galley.tex", "_extension.yml", "demo.cls"}
+    assert {p.name for p in written} == {"galley.tex", "_extension.yml", "galley.yml", "demo.cls"}
     assert template.sha256(extension / "demo.cls") == template.sha256(source / "demo.cls")
     assert template.check(config, tmp_path, "1.0.0") == []
 

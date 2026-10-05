@@ -1,0 +1,19 @@
+# Base chart style. Template-specific values (palette, sizes, fonts) are
+# applied on top by galley.style.use() from the adopted template's config.
+axes.spines.top: False
+axes.spines.right: False
+axes.grid: True
+axes.grid.axis: y
+axes.axisbelow: True
+axes.titlelocation: left
+axes.titleweight: bold
+axes.linewidth: 0.6
+grid.linewidth: 0.4
+grid.color: D5DAE0
+xtick.major.width: 0.6
+ytick.major.width: 0.6
+xtick.direction: out
+ytick.direction: out
+legend.frameon: False
+figure.constrained_layout.use: True
+savefig.transparent: False

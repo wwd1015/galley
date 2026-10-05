@@ -25,6 +25,7 @@ tex-packages:
   - tcolorbox
   - tex-gyre
   - titlesec
+  - underscore            # needed by matplotlib's pgf backend (style.pgf)
 
 # Literal text in `main` -> Pandoc template syntax. `match` replaces one exact
 # string; `from`/`to` replaces everything from the start of `from` through the
@@ -57,11 +58,16 @@ replacements:
     to: '\end{recommendation}'
     with: '$body$'
   - match: '\bibliography{references}'
-    with: '\bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}'
+    with: |-
+      $if(bibliography)$
+      \bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
+      $endif$
 
 # Extra Quarto options for the format, for conventions the class cannot set.
 format-options:
   date-format: "MMMM YYYY"
+  fig-pos: H                # exhibits stay where the author put them
+  tbl-pos: H
 
 # The Pandoc glue block is inserted immediately before this anchor.
 glue-before: '\begin{document}'
@@ -78,3 +84,31 @@ environments:
 # Table conventions applied by galley-tables.lua.
 tables:
   font-size: small          # LaTeX size command name, or omit
+
+# Number formatting used by galley.formatting and galley.tables.
+numbers:
+  thousands: ","
+  decimal: "."
+  negative: minus           # minus | parentheses
+
+# Chart style applied by galley.style.use().
+style:
+  pgf: true                 # typeset chart text with the template's engine and fonts
+  font-family: sans-serif
+  font-size: 9
+  figure-width: 6.0         # inches; the text block is 154 mm wide
+  figure-height: 3.2
+  line-width: 1.6
+  palette: ["#14324F", "#C8102E", "#5F6B76", "#7FA3C7", "#E3A008"]
+  # Name of a font the charts must embed, checked by `galley build`.
+  font-check: TeXGyreHeros
+  pgf-preamble: |
+    \usepackage{fontspec}
+    \setmainfont{texgyrepagella}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+    \setsansfont{texgyreheros}[Extension=.otf,UprightFont=*-regular,BoldFont=*-bold,ItalicFont=*-italic,BoldItalicFont=*-bolditalic]
+
+# Template-specific front matter that `galley new` adds to a new paper.
+scaffold-metadata:
+  document-id: WP-0000-000
+  classification: Internal
+  version: "0.1"

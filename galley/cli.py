@@ -6,11 +6,14 @@ from pathlib import Path
 
 import typer
 
-from galley import __version__, fidelity, template
+from galley import __version__, build, doctor, fidelity, manifest, scaffold, template
+from galley.config import ConfigError, load_paper_config, read_paper_config
 
 app = typer.Typer(help="Whitepaper build system.", no_args_is_help=True)
 template_app = typer.Typer(help="Manage the team TeX template.", no_args_is_help=True)
+data_app = typer.Typer(help="Manage a paper's pinned data inputs.", no_args_is_help=True)
 app.add_typer(template_app, name="template")
+app.add_typer(data_app, name="data")
 
 ROOT_OPTION = typer.Option(Path("."), "--root", help="Galley repo root.")
 WORKDIR_OPTION = typer.Option(
@@ -32,6 +35,11 @@ def main(
     version: bool = typer.Option(False, "--version", callback=_version, is_eager=True),
 ) -> None:
     """Whitepaper build system."""
+
+
+def _fail(exc: BaseException | str, code: int = 1) -> typer.Exit:
+    typer.echo(f"error: {exc}", err=True)
+    raise typer.Exit(code)
 
 
 def _load(root: Path, config: Path) -> template.TemplateConfig:
@@ -73,8 +81,21 @@ def template_check(root: Path = ROOT_OPTION, config: Path = CONFIG_OPTION) -> No
 
 
 @template_app.command("packages")
-def template_packages(root: Path = ROOT_OPTION, config: Path = CONFIG_OPTION) -> None:
+def template_packages(
+    root: Path = ROOT_OPTION,
+    config: Path = CONFIG_OPTION,
+    paper: Path | None = typer.Option(
+        None, "--paper", help="Read the packages from a paper repo's vendored extension."
+    ),
+) -> None:
     """Print the TeX Live packages the template needs, for `tlmgr install`."""
+    if paper is not None:
+        path = paper / template.EXTENSION_DIR / template.PAPER_CONFIG
+        try:
+            typer.echo(" ".join(read_paper_config(path).tex_packages))
+        except (OSError, ConfigError) as exc:
+            _fail(exc, 2)
+        return
     typer.echo(" ".join(_load(root, config).tex_packages))
 
 
@@ -117,3 +138,82 @@ def template_verify(
         typer.echo(f"diff image: {image.relative_to(root)}")
     if not result.passed:
         raise typer.Exit(1)
+
+
+PAPER_ARGUMENT = typer.Argument(Path("."), help="Paper repo directory.")
+
+
+@app.command("new")
+def new(
+    slug: str = typer.Argument(..., help="Paper id: lowercase letters, digits, hyphens."),
+    parent: Path = typer.Option(Path("."), "--dir", help="Directory to create the repo in."),
+    git: bool = typer.Option(True, "--git/--no-git", help="Run `git init` in the new repo."),
+) -> None:
+    """Scaffold a paper repo that vendors the galley-pdf extension."""
+    try:
+        paper_dir = scaffold.new_paper(slug, parent, git=git)
+    except (scaffold.ScaffoldError, ConfigError) as exc:
+        _fail(exc)
+    typer.echo(f"created {paper_dir}")
+    typer.echo(f"next: galley build {paper_dir}")
+
+
+@app.command("build")
+def build_command(paper_dir: Path = PAPER_ARGUMENT) -> None:
+    """Verify data, render the PDF, run checks and write build-report.json."""
+    try:
+        result = build.build(paper_dir)
+    except (build.BuildError, ConfigError) as exc:
+        _fail(exc, 2)
+    for problem in result.problems:
+        typer.echo(f"problem: {problem}", err=True)
+    needs_data = result.report["checks"].get("needs-data-figures", [])
+    if needs_data:
+        typer.echo(f"note: {len(needs_data)} figure(s) still need data: {', '.join(needs_data)}")
+    typer.echo(f"wrote {result.report_path}")
+    if result.pdf is not None:
+        typer.echo(f"wrote {result.pdf} ({result.report['output']['pages']} pages)")
+    if not result.ok:
+        raise typer.Exit(1)
+
+
+@app.command("doctor")
+def doctor_command(paper_dir: Path = PAPER_ARGUMENT) -> None:
+    """Report tool versions (including the pinned TeX Live) and anything missing."""
+    try:
+        diagnosis = doctor.diagnose(load_paper_config(paper_dir))
+    except ConfigError as exc:
+        _fail(exc, 2)
+    for line in diagnosis.lines():
+        typer.echo(line)
+    if not diagnosis.ok:
+        raise typer.Exit(1)
+
+
+@data_app.command("add")
+def data_add(
+    path: Path = typer.Argument(..., help="File under the paper's data/ directory."),
+    paper_dir: Path = typer.Option(Path("."), "--paper", help="Paper repo directory."),
+    source: str = typer.Option("", "--source", help="Where the data came from."),
+    as_of: str = typer.Option("", "--as-of", help="As-of date of the data (YYYY-MM-DD)."),
+) -> None:
+    """Record a data file's SHA-256, source and as-of date in the manifest."""
+    try:
+        entry = manifest.add(paper_dir, path, source=source, as_of=as_of)
+    except manifest.ManifestError as exc:
+        _fail(exc)
+    typer.echo(f"{entry.path}  {entry.sha256}")
+
+
+@data_app.command("verify")
+def data_verify(paper_dir: Path = PAPER_ARGUMENT) -> None:
+    """Fail if any file under data/ disagrees with the manifest."""
+    try:
+        problems = manifest.verify(paper_dir)
+    except manifest.ManifestError as exc:
+        _fail(exc, 2)
+    for problem in problems:
+        typer.echo(problem, err=True)
+    if problems:
+        raise typer.Exit(1)
+    typer.echo("data matches the manifest")
