@@ -295,3 +295,31 @@ def convert_command(
     typer.echo(f"verify: {report['status'].upper()}")
     if report["status"] != "pass":
         raise typer.Exit(1)
+
+
+@app.command("review")
+def review_command(
+    paper_dir: Path = PAPER_ARGUMENT,
+    pr: int | None = typer.Option(None, "--pr", help="Pull request number to open."),
+    port: int = typer.Option(8050, "--port", help="Local port."),
+    hostname: str | None = typer.Option(
+        None, "--hostname", help="GitHub Enterprise host (default: github.com)."
+    ),
+    browser: bool = typer.Option(True, "--browser/--no-browser", help="Open the app in a browser."),
+) -> None:
+    """Review a paper's pull request locally, with a live typeset preview."""
+    import webbrowser
+
+    from galley.gh import Gh, GhError
+    from galley.review import app as review_app
+
+    try:
+        dash_app, _ = review_app.build(paper_dir, Gh(paper_dir.resolve(), hostname), pr=pr)
+    except (GhError, ConfigError) as exc:
+        _fail(exc, 2)
+    url = f"http://127.0.0.1:{port}"
+    typer.echo(f"Galley Review is running at {url} (Ctrl+C to stop)")
+    if browser:
+        webbrowser.open(url)
+    # Bound to the loopback interface only: the app acts with your GitHub credentials.
+    dash_app.run(host="127.0.0.1", port=port, debug=False)

@@ -23,6 +23,7 @@ def run_filter(filter_name: str, fixture: str, to: str = "latex") -> str:
             f"--to={to}",
             f"--lua-filter={FILTERS / filter_name}",
             f"--metadata-file={FIXTURES / 'filters-meta.yaml'}",
+            "--metadata=tbl-pos:H",
         ],
         capture_output=True,
         text=True,
