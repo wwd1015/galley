@@ -9,7 +9,6 @@ the Review tab hosts the pull-request review described in
 from __future__ import annotations
 
 import base64
-import json
 import re
 import threading
 import time
@@ -18,11 +17,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 from flask import Response, abort, send_from_directory
 
-from galley import build, doctor, manifest, scaffold
+from galley import build, doctor, manifest, scaffold, status
 from galley import convert as converter
 from galley import demo as demos
 from galley import verify as verifier
@@ -32,17 +30,13 @@ from galley.review.app import Controller, build_controller
 from galley.review.git import GitError
 from galley.review.model import render_markdown
 from galley.review.preview import PREVIEW_TAG
-from galley.template import EXTENSION_DIR, PAPER_CONFIG
-from galley.verify.report import ACCEPT_FILE
+from galley.status import is_paper
+from galley.verify.report import add_acceptance
 
 UPLOADS = ".galley-uploads"
 SERVED_SUFFIXES = (".pdf", ".png", ".jpg", ".jpeg", ".svg")
 TABS = ("papers", "convert", "build", "verify", "review")
 JobFunction = Callable[[build.Progress], dict[str, Any]]
-
-
-def is_paper(directory: Path) -> bool:
-    return (directory / EXTENSION_DIR / PAPER_CONFIG).is_file()
 
 
 @dataclass
@@ -106,9 +100,7 @@ class Workbench:
     # -- papers ------------------------------------------------------------
 
     def paper_dirs(self) -> list[Path]:
-        if not self.workspace.is_dir():
-            return []
-        return sorted(d for d in self.workspace.iterdir() if d.is_dir() and is_paper(d))
+        return status.paper_dirs(self.workspace)
 
     @property
     def paper_dir(self) -> Path | None:
@@ -125,22 +117,11 @@ class Workbench:
 
     @staticmethod
     def original(directory: Path) -> Path | None:
-        return next(iter(sorted((directory / "source").glob("original.*"))), None)
+        return status.original(directory)
 
-    def _paper_summary(self, directory: Path) -> dict[str, Any]:
-        document = build.main_document(directory)
-        report = _read_json(directory / build.REPORT)
-        verify = _read_json(directory / "verify-report.json")
-        original = self.original(directory)
-        return {
-            "slug": directory.name,
-            "document": document,
-            "has_pdf": (directory / Path(document).with_suffix(".pdf").name).is_file(),
-            "build_ok": report.get("ok") if report else None,
-            "verify": verify.get("status") if verify else None,
-            "source": original.name if original else None,
-            "git": (directory / ".git").exists(),
-        }
+    @staticmethod
+    def _paper_summary(directory: Path) -> dict[str, Any]:
+        return status.paper_summary(directory)
 
     # -- messages and jobs -------------------------------------------------
 
@@ -287,17 +268,7 @@ class Workbench:
         directory = self._require_paper()
         if not reason.strip():
             raise ValueError("Give a reason for accepting this difference.")
-        path = directory / ACCEPT_FILE
-        entries: list[Any] = []
-        if path.is_file():
-            loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or []
-            entries = loaded.get("accept", []) if isinstance(loaded, dict) else loaded
-        entries = [e for e in entries if isinstance(e, dict) and e.get("id") != finding]
-        entry = {"id": finding, "reason": reason.strip()}
-        if approved_by.strip():
-            entry["approved-by"] = approved_by.strip()
-        entries.append(entry)
-        path.write_text(yaml.safe_dump(entries, sort_keys=False), encoding="utf-8")
+        add_acceptance(directory, finding, reason, approved_by)
         self.verify_paper()
 
     # -- review ------------------------------------------------------------
@@ -502,14 +473,7 @@ class Workbench:
         return self.review.session.file_epoch if self.review is not None else -1
 
 
-def _read_json(path: Path) -> dict[str, Any] | None:
-    if not path.is_file():
-        return None
-    try:
-        loaded = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    return loaded if isinstance(loaded, dict) else None
+_read_json = status.read_json
 
 
 def layout() -> html.Div:
@@ -517,52 +481,57 @@ def layout() -> html.Div:
         id="galley-app",
         children=[
             html.Div(id="wb-nav"),
-            html.Div(id="wb-job"),
             html.Div(
-                id="wb-main",
+                id="wb-content",
                 children=[
-                    html.Div(id="wb-tab-papers", className="wb-tab"),
+                    html.Div(id="wb-job"),
                     html.Div(
-                        id="wb-tab-convert",
-                        className="wb-tab",
+                        id="wb-main",
                         children=[
-                            html.Div(id="wb-convert-intro"),
-                            dcc.Upload(
-                                id="wb-upload",
-                                className="wb-drop",
-                                children=html.Div(
-                                    "Drop a .docx or .pdf here, or click to choose one"
-                                ),
-                                accept=".docx,.pdf,.bib",
-                                multiple=False,
-                            ),
-                            html.Div(id="wb-convert-body"),
-                        ],
-                    ),
-                    html.Div(id="wb-tab-build", className="wb-tab"),
-                    html.Div(id="wb-tab-verify", className="wb-tab"),
-                    html.Div(
-                        id="wb-tab-review",
-                        className="wb-tab",
-                        children=[
-                            html.Div(id="wb-review-empty"),
-                            html.Div(id="gl-topbar"),
-                            html.Div(id="gl-banner"),
+                            html.Div(id="wb-tab-papers", className="wb-tab"),
                             html.Div(
-                                id="gl-panes",
+                                id="wb-tab-convert",
+                                className="wb-tab",
                                 children=[
-                                    html.Div(
-                                        id="gl-left",
-                                        children=[
-                                            html.Div(id="gl-loose"),
-                                            html.Div(id="gl-editor"),
-                                        ],
+                                    html.Div(id="wb-convert-intro"),
+                                    dcc.Upload(
+                                        id="wb-upload",
+                                        className="wb-drop",
+                                        children=html.Div(
+                                            "Drop a .docx or .pdf here, or click to choose one"
+                                        ),
+                                        accept=".docx,.pdf,.bib",
+                                        multiple=False,
                                     ),
+                                    html.Div(id="wb-convert-body"),
+                                ],
+                            ),
+                            html.Div(id="wb-tab-build", className="wb-tab"),
+                            html.Div(id="wb-tab-verify", className="wb-tab"),
+                            html.Div(
+                                id="wb-tab-review",
+                                className="wb-tab",
+                                children=[
+                                    html.Div(id="wb-review-empty"),
+                                    html.Div(id="gl-topbar"),
+                                    html.Div(id="gl-banner"),
                                     html.Div(
-                                        id="gl-right",
+                                        id="gl-panes",
                                         children=[
-                                            html.Iframe(id="gl-preview", title="Preview"),
-                                            html.Div(id="gl-preview-empty"),
+                                            html.Div(
+                                                id="gl-left",
+                                                children=[
+                                                    html.Div(id="gl-loose"),
+                                                    html.Div(id="gl-editor"),
+                                                ],
+                                            ),
+                                            html.Div(
+                                                id="gl-right",
+                                                children=[
+                                                    html.Iframe(id="gl-preview", title="Preview"),
+                                                    html.Div(id="gl-preview-empty"),
+                                                ],
+                                            ),
                                         ],
                                     ),
                                 ],

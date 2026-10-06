@@ -51,12 +51,26 @@ Every tab does what the matching command below does.
 | `galley data add <file>` / `galley data verify` | Pin a data file by SHA-256 in `data/manifest.yaml`; check every file against it. |
 | `galley convert <input> --out <dir>` | Convert a `.docx`, a link-shared Google Doc URL or a `.pdf` into a paper repo, then verify it. |
 | `galley verify <source> [dir]` | Compare the original document with the rendered PDF; non-zero exit on content loss. |
+| `galley status [dir]` | Where each paper stands: built, verified, converted, in Git. |
+| `galley accept <id> [dir] --reason …` | Record that a person accepts one verify finding. |
+| `galley pr …` | Review a pull request from the command line: threads, comment, reply, resolve, submit, push. |
+| `galley commands` | Every command with its options; `--json` for a machine-readable map. |
 | `galley hooks [dir]` | Install a pre-commit hook that runs `galley verify` on a converted paper. |
 | `galley app [workspace]` | The app: convert, build, verify and review in one window. |
 | `galley demo [folder]` | The app on sample material with a simulated GitHub, to see every step end to end. |
 | `galley review [dir]` | Open the app directly on a paper's pull request review. |
 | `galley doctor [dir]` | Tool versions, including the TeX Live year, and missing TeX packages. |
 | `galley template ...` | Adopt and test the team template (below). |
+
+## From scripts and AI agents
+
+Every command takes `--json` and then prints exactly one JSON object; exit
+codes are 0 (success), 1 (ran, something failed) and 2 (could not run).
+`galley commands --json` describes every command and option. Pull request
+review is available without the app through `galley pr` (`list`, `threads`,
+`comment`, `reply`, `resolve`, `edit`, `delete`, `submit`, `push`), and
+`galley status` and `galley accept` cover the rest of what the app shows.
+See [AGENTS.md](AGENTS.md).
 
 ## Writing a paper
 

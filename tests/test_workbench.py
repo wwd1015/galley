@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from galley.workbench import Workbench, create_app, is_paper
+from galley.status import is_paper
+from galley.workbench import Workbench, create_app
 
 from . import builders
 from .review_env import ReviewEnv, make_env

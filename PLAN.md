@@ -1,6 +1,6 @@
 # PLAN
 
-All five phases in SPEC.md section 6 are built. 180 tests pass locally with
+All five phases in SPEC.md section 6 are built. 187 tests pass locally and in GitHub Actions with
 ruff and mypy strict clean. This file records what was built, where it departs
 from the spec, and what has not been proven.
 

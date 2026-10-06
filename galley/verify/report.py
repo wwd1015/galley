@@ -53,6 +53,28 @@ def apply_acceptances(checks: list[CheckResult], paper_dir: Path) -> list[str]:
     return rejected
 
 
+def add_acceptance(paper_dir: Path, finding: str, reason: str, approved_by: str = "") -> Path:
+    """Record in ``verify-accept.yaml`` that a person accepts one finding.
+
+    Whether a numeric finding's approver is good enough is decided when the
+    file is applied, on the next ``galley verify``.
+    """
+    if not reason.strip():
+        raise ValueError("Give a reason for accepting this difference.")
+    path = paper_dir / ACCEPT_FILE
+    entries: list[Any] = []
+    if path.is_file():
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or []
+        entries = loaded.get("accept", []) if isinstance(loaded, dict) else loaded
+    entries = [e for e in entries if isinstance(e, dict) and e.get("id") != finding]
+    entry = {"id": finding, "reason": reason.strip()}
+    if approved_by.strip():
+        entry["approved-by"] = approved_by.strip()
+    entries.append(entry)
+    path.write_text(yaml.safe_dump(entries, sort_keys=False), encoding="utf-8")
+    return path
+
+
 def overall_status(checks: list[CheckResult]) -> str:
     return "fail" if any(c.status == "fail" for c in checks) else "pass"
 
