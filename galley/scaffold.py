@@ -139,6 +139,7 @@ jobs:
         run: |
           echo "$HOME/.TinyTeX/bin/x86_64-linux" >> "$GITHUB_PATH"
           export PATH="$HOME/.TinyTeX/bin/x86_64-linux:$PATH"
+          tlmgr update --self
           packages="$(galley template packages --paper .)"
           if [ -n "$packages" ]; then tlmgr install $packages; fi
       - name: Build
