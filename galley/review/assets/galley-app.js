@@ -135,6 +135,7 @@
           TABS.map(([id, label]) =>
             el("button", {
               class: "wb-tabbtn" + (state.tab === id ? " active" : ""),
+              title: "Open the " + label.replace(/^\d /, "") + " page",
               text: label,
               onclick: () => send({ type: "wb_tab", tab: id }),
             })
@@ -170,6 +171,41 @@
     });
   }
 
+  // ---- demo walkthrough ---------------------------------------------------
+
+  function demoBox(state) {
+    const demo = state.demo;
+    const converted = state.papers.some((paper) => paper.slug === demo.slug);
+    const open = (tab) => function () {
+      send({ type: "wb_select_paper", slug: demo.slug });
+      send({ type: "wb_tab", tab: tab });
+    };
+    const step = (text, label, onclick, enabled) =>
+      el("li", {}, [
+        el("div", { html: text }),
+        el("button", { class: "gl-btn small" + (enabled ? " primary" : ""), text: label, disabled: !enabled, onclick: onclick }),
+      ]);
+    return el("div", { class: "wb-demo" }, [
+      el("b", { text: "Demo walkthrough: press the buttons in order" }),
+      el("ol", {}, [
+        step(
+          "<b>Convert</b> the sample Word whitepaper. Watch the stages tick off in the strip under the tabs, then read the conversion report: one style has no mapping, one figure needs data, one citation could not be matched. Verify <b>fails on purpose</b>, because that citation's year (1999) is missing from the PDF.",
+          converted ? "Sample already converted: open the report" : "Step 1: convert the sample",
+          function () {
+            send({ type: "wb_tab", tab: "convert" });
+            if (converted) send({ type: "wb_select_paper", slug: demo.slug });
+            else send({ type: "wb_convert", source: demo.sample, slug: demo.slug, bib: demo.bib, source_url: "" });
+          },
+          !busy(state)
+        ),
+        step("<b>Build</b>: the data manifest, the checks and the PDF, including a chart rebuilt from the data embedded in the Word file.", "Step 2: open Build", open("build"), converted),
+        step("<b>Verify</b>: each finding with the original and the PDF side by side. To accept the missing number you must give a reason and your name.", "Step 3: open Verify", open("verify"), converted),
+        step("<b>Review</b>: a pull request is simulated on your machine and a teammate (alice) has left two comments. Reply, add a comment with the blue <b>+</b> beside a line number, resolve, edit the text, and watch alice answer within a few seconds.", "Step 4: open Review", open("review"), converted),
+      ]),
+      el("p", { class: "wb-muted", text: "Nothing in the demo is sent to GitHub or anywhere else." }),
+    ]);
+  }
+
   // ---- Papers ------------------------------------------------------------
 
   function drawPapers(state) {
@@ -196,19 +232,15 @@
           el("li", { html: "<b>Verify</b> a converted paper against its original: text, numbers, headings, exhibits." }),
           el("li", { html: "<b>Review</b> on a GitHub pull request with a live typeset preview." }),
         ]),
-        state.demo
-          ? el("div", { class: "wb-demo" }, [
-              el("b", { text: "Demo walkthrough" }),
-              el("ol", {}, [
-                el("li", { html: "Open <b>1 Convert</b>. The sample Word whitepaper and its bibliography are already filled in. Press <b>Convert</b> and watch the stages in the strip above." }),
-                el("li", { html: "Read the conversion report: one style has no mapping, one figure needs data, one citation could not be matched. Verify <b>fails</b> on purpose, because that citation's year (1999) is missing from the PDF." }),
-                el("li", { html: "Open <b>2 Build</b> to see the manifest, the checks and the PDF, including a chart rebuilt from the data embedded in the Word file." }),
-                el("li", { html: "Open <b>3 Verify</b> and look at each finding. To accept the missing number you must give a reason and your name." }),
-                el("li", { html: "Open <b>4 Review</b>. A pull request is simulated on your machine and a teammate (alice) has left two comments. Reply, add a comment with the blue <b>+</b>, resolve, edit the text, and watch alice answer within a few seconds." }),
-              ]),
-              el("p", { class: "wb-muted", text: "Nothing in the demo is sent to GitHub or anywhere else." }),
-            ])
-          : null,
+        state.demo ? demoBox(state) : null,
+        el("div", { class: "wb-row" }, [
+          el("button", {
+            class: "gl-btn primary",
+            text: "Convert a Word, Google Docs or PDF whitepaper →",
+            onclick: () => send({ type: "wb_tab", tab: "convert" }),
+          }),
+          el("span", { class: "wb-muted", text: "or start an empty paper under “New paper” below." }),
+        ]),
         state.papers.length
           ? table(["Paper", "Origin", "Build", "Verify", "Git repo", ""], rows)
           : el("p", { text: "No papers in this workspace yet." }),

@@ -96,8 +96,10 @@ button, select, input, textarea { font: inherit; }
   color: #fff; min-height: 44px; }
 .wb-brand { font-weight: 700; font-size: 16px; margin-right: 8px; }
 #wb-nav nav { display: flex; gap: 2px; align-self: stretch; }
-.wb-tabbtn { border: 0; background: none; color: #d0d7de; padding: 0 14px; cursor: pointer;
-  border-bottom: 3px solid transparent; font-weight: 500; }
+.wb-tabbtn { border: 0; background: #32383f; color: #fff; padding: 0 16px; cursor: pointer;
+  border-bottom: 3px solid transparent; font-weight: 600; margin: 6px 0 0 0;
+  border-radius: 6px 6px 0 0; }
+.wb-tabbtn:hover { background: #424a53; }
 .wb-tabbtn:hover { color: #fff; }
 .wb-tabbtn.active { color: #fff; border-bottom-color: #fd8c73; }
 #wb-nav .wb-muted { color: #adbac7; }
@@ -156,3 +158,5 @@ button, select, input, textarea { font: inherit; }
 .wb-demo.slim { margin: 0; max-width: none; border-radius: 0; border-width: 0 0 1px 0;
   padding: 6px 12px; }
 #wb-review-empty:has(.wb-demo.slim) { padding: 0; }
+.wb-demo li { margin: 8px 0; }
+.wb-demo li button { margin-top: 4px; }
